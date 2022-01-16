@@ -1,0 +1,403 @@
+﻿@model Tuple<IEnumerable<SelectListItem>, IEnumerable<SelectListItem>, IEnumerable<SelectListItem>>
+
+
+
+<script src="~/Scripts/jquery-3.4.1.js"></script>
+
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        $("#txtItem").val(0);
+        $("#txtItem").change(function () {
+            var itemId = $("#txtItem").val();
+            getItemPrice(itemId);
+        });
+
+        $("input[type=text]").keyup(function () {
+            CalculateSubTotal();
+
+        });
+
+
+        $("input[type=text]").keyup(function () {
+            PopulateModal();
+
+        });
+
+
+        $("#txtSave").click(function () {
+            SaveData();
+           
+        });
+
+        $("#btnCheckOut").click(function () {
+            PopulateModal();
+        });
+
+        $("#btnPayment").click(function () {
+            FinalPayment();
+        });
+    });
+
+
+
+    function FinalItemTotal() {
+        $("#txtFinalItemTotal").val(0);
+        var FinalTotal = 0;
+        $("#txtTableList").find("tr:gt(0)").each(function () {
+            var Total = $(this).find("td:eq(5)").text();
+           
+            FinalTotal = parseFloat(FinalTotal) + parseFloat(Total); 
+          
+        });
+         
+        $("#txtFinalItemTotal").val(parseFloat(FinalTotal));
+    }
+    
+
+    function CalculateSubTotal() {
+        var unitPrice = $("#txtUnitPrice").val();
+        var Quantity = $("#txtQuantity").val();
+        var Discount = $("#txtDiscount").val();
+
+        var Total = (unitPrice * Quantity) - Discount;
+        $("#txtTotal").val(Total);
+    }
+
+
+    function getItemPrice(itemId) {
+
+        $.ajax({
+            async: true,
+            type: 'GET',
+            dataType: 'JSON',
+            contentType: 'application/json;charset=utf-8',
+            data: { itemId: itemId },
+            url: '/home/getItemUnitPrice',
+            success: function (data) {
+                $("#txtUnitPrice").val(data);
+            },
+            error: function (err) {
+                alert("error occured");
+
+            }
+
+
+        })
+
+
+
+    }
+
+
+    function SaveData() {
+        var txtTableList = $("#txtTableList");
+        var txtUnitPrice = $("#txtUnitPrice").val();
+        var txtQuantity = $("#txtQuantity").val();
+        var txtDiscount = $("#txtDiscount").val();
+        var txtTotal = $("#txtTotal").val();
+        var txtItemName = $("#txtItem option:selected").text();
+        var txtItemID = $("#txtItem").val();
+        var ItemList = '<tr><td hidden>' + txtItemID + '</td><td>' + txtItemName
+            + '</td><td>' + txtUnitPrice + '</td><td>' + txtQuantity + '</td><td>'
+            + txtDiscount + '</td><td>' + txtTotal + "</td><td><input type='submit' value='Remove' name='Remove' class='btn btn-danger' onclick='RemoveItem(this)' /></td></tr>";
+
+        txtTableList.append(ItemList);
+        resetData();
+        FinalItemTotal();
+    }
+
+
+    function resetData() {
+        $("#txtTableList").val("");
+        $("#txtUnitPrice").val("");
+        $("#txtQuantity").val("");
+        $("#txtDiscount").val("");
+        $("#txtTotal").val("");
+
+    }
+
+    function RemoveItem(itemId) {
+
+        $(itemId).closest('tr').remove();
+    }
+
+    function PopulateModal() {
+        var value1 = $("#txtFinalItemTotal").val();
+        console.log(value1)
+         $("#txtPaymentTotal").val(value1);
+
+
+       
+            var txtPaymentAmount = $("#txtPaymentAmount").val();
+            console.log(txtPaymentAmount);
+
+        
+
+       
+
+        var balance = parseFloat(value1) - parseFloat(txtPaymentAmount);
+
+        console.log(balance);
+        $("#txtBalance").val(parseFloat(balance));
+        //btnPayment
+        if (parseFloat($("#txtBalance").val()) == 0) {
+            $("#btnPayment").removeAttr("disabled");
+
+        }
+
+    }
+
+
+    function FinalPayment() {
+
+     
+
+        var ObjOrderViewModel = {};       
+        var ListOfOrderDetailViewModel = new Array();
+
+
+        ObjOrderViewModel.CustomerId = $("#txtCustomer").val();
+        ObjOrderViewModel.PaymentTypeId = $("#txtPaymentType").val();    
+        ObjOrderViewModel.FinalTotal = $("#txtFinalItemTotal").val();
+
+
+        $("#txtTableList").find("tr:gt(0)").each(function () {
+            var OrderDetailViewModel = {};
+
+            OrderDetailViewModel.UnitPrice = parseFloat($(this).find("td:eq(2)").text());
+            console.log("unitprice="+parseFloat($(this).find("td:eq(2)").text()));
+
+            OrderDetailViewModel.Quantity = parseFloat($(this).find("td:eq(3)").text());
+           console.log("txtQuantity=" +parseFloat($(this).find("td:eq(3)").text()));
+
+            OrderDetailViewModel.Discount = parseFloat($(this).find("td:eq(4)").text());
+            console.log("txtDiscount=" +parseFloat($(this).find("td:eq(4)").text()));
+
+            OrderDetailViewModel.Total = parseFloat($(this).find("td:eq(5)").text());
+            console.log("txtTotal=" +parseFloat($(this).find("td:eq(5)").text()));
+
+            OrderDetailViewModel.ItemId = parseFloat($(this).find("td:eq(0)").text());
+            console.log("txtItemID=" + parseFloat($(this).find("td:eq(0)").text()));
+
+            ListOfOrderDetailViewModel.push(OrderDetailViewModel);
+
+            console.log(ListOfOrderDetailViewModel);
+
+        });
+        ObjOrderViewModel.ListOfOrderDetailViewModel = ListOfOrderDetailViewModel;
+        console.log(ObjOrderViewModel);
+
+
+        $.ajax({
+            async: true,
+            type: 'POST',
+            dataType: 'JSON',
+            contentType: 'application/json;charset-utf-8',
+            data: JSON.stringify(ObjOrderViewModel),
+            url: '/Home/Index',
+            success: function (data) {
+                alert(data);
+            },
+            error: function (err) {
+                alert("There is an error");
+            }
+        });
+
+
+    }
+
+
+</script>
+
+
+
+<fieldset>
+    <legend>
+        Resturant App:
+    </legend>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="form-group">
+                    <h4> Customer:</h4>
+                    @Html.DropDownList("Customer", new SelectList(Model.Item1, "Value", "Text"),
+                   new { @class = "form-control" ,id="txtCustomer"})
+                </div>
+            </div>
+
+
+
+            <div class="col-md-4">
+                <div class="form-group">
+                    <h4>PaymentType:</h4>
+                    @Html.DropDownList("PaymentType", new SelectList(Model.Item3, "Value", "Text"),
+                   new { @class = "form-control" ,id= "txtPaymentType" })
+                </div>
+            </div>
+
+
+
+
+
+
+
+            <div class="col-md-4">
+                <div class="form-group">
+                    <h4>Total Amount:</h4>
+                    <input type="text" id="txtFinalItemTotal" readonly class="form-control" value="0" />
+                </div>
+            </div>
+        </div>
+
+
+
+    </div>
+</fieldset>
+
+<fieldset>
+    <legend>
+        Resturant App:
+    </legend>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <h4>Items:</h4>
+                    @Html.DropDownList("Item", new SelectList(Model.Item2, "Value", "Text"),
+                   new { @class = "form-control", id = "txtItem" })
+                </div>
+            </div>
+
+
+            <div class="col-md-6">
+                <div class="form-group">
+                    <h4>Unit Price:</h4>
+                    <input type="text" readonly id="txtUnitPrice" name="unitPrice" value="0.00" class="form-control" />
+                </div>
+            </div>
+
+
+
+
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <h4>Quantity:</h4>
+                    <input type="text" value="0" name="Quantity" id="txtQuantity" class="form-control" />
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="form-group">
+                    <h4>Discount:</h4>
+                    <input type="text" value="0" name="Discount" id="txtDiscount" class="form-control" />
+                </div>
+            </div>
+        </div>
+
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <h4>Total:</h4>
+                    <input type="text" readonly value="0" name="Total" id="txtTotal" class="form-control" />
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="form-group">
+                    <input type="button" id="txtSave" name="AddToList" value="Add To list" class="btn btn-success btn-block" style="margin-top:54px" />
+                </div>
+            </div>
+        </div>
+    </div>
+</fieldset>
+
+<fieldset>
+    <legend>
+        Resturant Listed Item:
+    </legend>
+    <table id="txtTableList" style="width:100%" class="table-responsive table-condensed">
+        <thead>
+            <tr>
+                <th hidden>
+                    ID:
+                </th>
+                <th>
+                    Item Name:
+                </th>
+                <th>
+                    Unit Pirce:
+                </th>
+                <th>
+                    Quantity:
+                </th>
+                <th>
+                    Discount:
+                </th>
+                <th>
+                    Total:
+                </th>
+                <th>
+                    Action:
+                </th>
+            </tr>
+        </thead>
+    </table>
+</fieldset>
+
+
+<div>
+    <input data-toggle="modal" data-target="#divPayment" id="btnCheckOut" type="button" name="checkOut" value="checkOut"
+           class="btn btn-success" style="margin-left:999px;margin-top:22px" />
+</div>
+
+<div id="divPayment" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Payment</h4>
+            </div>
+            <div class="modal-body">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-md-12">
+                            Payment Total:
+                            <input type="text" id="txtPaymentTotal"
+                                   readonly value="0" class="form-control" />
+                        </div>
+
+                        <div class="col-md-12">
+                            Payment Amount:
+                            <input type="text" id="txtPaymentAmount"
+                                    value="0" class="form-control" />
+                        </div>
+                    
+                   
+                        <div class="col-md-12">
+                            Balance:
+                            <input type="text" id="txtBalance"
+                                   readonly value="0" class="form-control" />
+                        </div>
+                
+                      </div>
+
+                    </div>
+                </div>
+
+            <div class="modal-footer">
+                <input type="button"class="btn btn-success" id="btnPayment" value="Payment" disabled/>
+                <button class="btn btn-danger" id="btnClose" value="Close">Close</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+
+
